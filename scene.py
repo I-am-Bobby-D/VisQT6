@@ -5,7 +5,7 @@ from PyQt6.QtOpenGLWidgets import QOpenGLWidget
 from PyQt6.QtCore import Qt
 from OpenGL.GL import *
 from OpenGL.GL.shaders import compileShader, compileProgram
-import camera
+from camera import Camera
 
 # Vertex and Fragment Shaders
 VERTEX_SHADER_SOURCE = """
@@ -28,38 +28,12 @@ void main()
     FragColor = vec4(color, 1.0);
 }
 """
-#redundant perhaps
-def perspective(fovy, aspect, znear, zfar):
-    """Generate a perspective projection matrix."""
-    f = 1.0 / np.tan(fovy / 2)
-    return np.array([
-        [f / aspect, 0, 0, 0],
-        [0, f, 0, 0],
-        [0, 0, (zfar + znear) / (znear - zfar), -1],
-        [0, 0, (2 * zfar * znear) / (znear - zfar), 0]
-    ], dtype=np.float32)
-
-
-#may be redundant
-def lookAt(eye, center, up):
-    """Generate a view matrix."""
-    f = (center - eye) / np.linalg.norm(center - eye)
-    s = np.cross(f, up) / np.linalg.norm(np.cross(f, up))
-    u = np.cross(s, f)
-    return np.array([
-        [s[0], u[0], -f[0], 0],
-        [s[1], u[1], -f[1], 0],
-        [s[2], u[2], -f[2], 0],
-        [-np.dot(s, eye), -np.dot(u, eye), np.dot(f, eye), 1]
-    ], dtype=np.float32)
 
 class GLWidget(QOpenGLWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.show_axes = True  # Toggle for showing/hiding axes
-        self.camera_eye = np.array([3.0, 3.0, 3.0])
-        self.camera_center = np.array([0.0, 0.0, 0.0])
-        self.camera_up = np.array([0.0, 1.0, 0.0])
+        self.show_axes = True
+        self.camera = Camera()
         self.last_mouse_pos = None  # For panning
 
     def initializeGL(self):
@@ -95,15 +69,17 @@ class GLWidget(QOpenGLWidget):
 
         glEnable(GL_DEPTH_TEST)
 
+
+    # Called by default: __init__-> initializeGL - > resizeGL -> paintGL
     def paintGL(self):
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         glClearColor(0.1, 0.1, 0.1, 1.0)
 
         glUseProgram(self.shader_program)
 
-        # Set projection and view matrices
-        projection = perspective(np.radians(45), self.width() / self.height(), 0.1, 100.0)
-        view = lookAt(self.camera_eye, self.camera_center, self.camera_up)
+        # Set projection and view matrices using camera instance methods
+        projection = self.camera.perspective(np.radians(45), self.width() / self.height(), 0.1, 100.0)
+        view = self.camera.lookAt()
 
         glUniformMatrix4fv(glGetUniformLocation(self.shader_program, "projection"), 1, GL_FALSE, projection)
         glUniformMatrix4fv(glGetUniformLocation(self.shader_program, "view"), 1, GL_FALSE, view)
@@ -128,12 +104,15 @@ class GLWidget(QOpenGLWidget):
     def resizeGL(self, w, h):
         glViewport(0, 0, w, h)
 
+
+    # TODO: Move to/create IO.py
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
             self.last_mouse_pos = event.position()
 
             #rotate camera
 
+    # TODO: Move to IO.py, camera.py calls IO.py
     def mouseMoveEvent(self, event):
         if self.last_mouse_pos is None:
             return
@@ -143,15 +122,15 @@ class GLWidget(QOpenGLWidget):
 
         # Pan the camera
         pan_speed = 0.01
-        right = np.cross(self.camera_center - self.camera_eye, self.camera_up)
+        right = np.cross(self.camera.center - self.camera.eye, self.camera.up)
         right = right / np.linalg.norm(right)
-        up = np.cross(right, self.camera_center - self.camera_eye)
+        up = np.cross(right, self.camera.center - self.camera.eye)
         up = up / np.linalg.norm(up)
 
-        self.camera_eye += -delta.x() * pan_speed * right + delta.y() * pan_speed * up
-        self.camera_center += -delta.x() * pan_speed * right + delta.y() * pan_speed * up
+        self.camera.eye += -delta.x() * pan_speed * right + delta.y() * pan_speed * up
+        self.camera.center += -delta.x() * pan_speed * right + delta.y() * pan_speed * up
         self.update()
-
+    # TODO: Guess
     def mouseReleaseEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
             self.last_mouse_pos = None
