@@ -6,7 +6,10 @@ from PyQt6.QtCore import Qt
 from OpenGL.GL import *
 from OpenGL.GL.shaders import compileShader, compileProgram
 from camera import Camera
+from quaternion import Quaternion
+from IO import IO
 
+# scene as data class vs current state as renderer
 # Vertex and Fragment Shaders
 VERTEX_SHADER_SOURCE = """
 #version 330 core
@@ -29,12 +32,11 @@ void main()
 }
 """
 
-class GLWidget(QOpenGLWidget):
+class GLWidget(IO, QOpenGLWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.show_axes = True
         self.camera = Camera()
-        self.last_mouse_pos = None  # For panning
 
     def initializeGL(self):
         # Compile shaders
@@ -61,12 +63,11 @@ class GLWidget(QOpenGLWidget):
         glBindVertexArray(self.VAO)
         glBindBuffer(GL_ARRAY_BUFFER, self.VBO)
         glBufferData(GL_ARRAY_BUFFER, self.vertices.nbytes, self.vertices, GL_STATIC_DRAW)
+
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * self.vertices.itemsize, None)
         glEnableVertexAttribArray(0)
-
         glBindBuffer(GL_ARRAY_BUFFER, 0)
         glBindVertexArray(0)
-
         glEnable(GL_DEPTH_TEST)
 
 
@@ -103,69 +104,3 @@ class GLWidget(QOpenGLWidget):
 
     def resizeGL(self, w, h):
         glViewport(0, 0, w, h)
-
-
-    # TODO: Move to/create IO.py
-    def mousePressEvent(self, event):
-        if event.button() == Qt.MouseButton.LeftButton:
-            self.last_mouse_pos = event.position()
-
-            #rotate camera
-
-    # TODO: Move to IO.py, camera.py calls IO.py
-    def mouseMoveEvent(self, event):
-        if self.last_mouse_pos is None:
-            return
-
-        delta = event.position() - self.last_mouse_pos
-        self.last_mouse_pos = event.position()
-
-        # Pan the camera
-        pan_speed = 0.01
-        right = np.cross(self.camera.center - self.camera.eye, self.camera.up)
-        right = right / np.linalg.norm(right)
-        up = np.cross(right, self.camera.center - self.camera.eye)
-        up = up / np.linalg.norm(up)
-
-        self.camera.eye += -delta.x() * pan_speed * right + delta.y() * pan_speed * up
-        self.camera.center += -delta.x() * pan_speed * right + delta.y() * pan_speed * up
-        self.update()
-    # TODO: Guess
-    def mouseReleaseEvent(self, event):
-        if event.button() == Qt.MouseButton.LeftButton:
-            self.last_mouse_pos = None
-
-class MainWindow(QMainWindow):
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle("3D Coordinate System")
-        self.setGeometry(100, 100, 800, 600)
-
-        self.gl_widget = GLWidget()
-
-        # Toggle axes button
-        self.toggle_axes_button = QPushButton("Toggle Axes")
-        self.toggle_axes_button.clicked.connect(self.toggle_axes)
-
-        layout = QVBoxLayout()
-        layout.addWidget(self.gl_widget)
-        layout.addWidget(self.toggle_axes_button)
-
-        container = QWidget()
-        container.setLayout(layout)
-        self.setCentralWidget(container)
-
-
-
-
-    def toggle_axes(self):
-        self.gl_widget.show_axes = not self.gl_widget.show_axes
-        self.gl_widget.update()
-
-
-
-# Main Function
-app = QApplication(sys.argv)
-window = MainWindow()
-window.show()
-sys.exit(app.exec())

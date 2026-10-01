@@ -8,7 +8,9 @@ class Camera:
         self.up = np.array([0.0, 1.0, 0.0], dtype=np.float32)
         self.orientation = Quaternion(1, 0, 0, 0)  # Identity quaternion
 
-    # Moved from scene.py
+
+
+    # Moved from scene.py, used in paintGL setup
     def lookAt(self):
         f = self.center - self.eye
         f = f / np.linalg.norm(f)
@@ -23,6 +25,7 @@ class Camera:
             [-np.dot(s, self.eye), -np.dot(u, self.eye), np.dot(f, self.eye), 1.0]
         ], dtype=np.float32)
 
+    #Used in paintGL setup
     def perspective(self, fovy, aspect, znear, zfar):
         f = 1.0 / np.tan(fovy / 2)
         return np.array([
@@ -33,7 +36,7 @@ class Camera:
         ], dtype=np.float32)
 
 
-
+    #Not used,
     def rotate(self, axis, angle):
        #"""Rotate the camera by `angle` (in radians) around `axis`."""
         axis = axis / np.linalg.norm(axis)
@@ -46,12 +49,3 @@ class Camera:
             axis[2] * sin_half_angle
         )
         self.orientation = self.orientation * rotation
-
-    def get_view_matrix(self):
-        #"""Compute the view matrix from the camera's quaternion orientation."""
-        rotation_matrix = self.orientation.to_rotation_matrix()
-        translation = -self.position
-        view_matrix = np.eye(4, dtype=np.float32)
-        view_matrix[:3, :3] = rotation_matrix
-        view_matrix[:3, 3] = rotation_matrix @ translation
-        return view_matrix
