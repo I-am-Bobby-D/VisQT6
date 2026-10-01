@@ -1,5 +1,7 @@
-Install the following dependencies into a venv:
+Check what is already installed into your venv:
 python -m pip list
+
+Install the following dependencies into your venv:
 Package    Version
 ---------- -------
 numpy      2.1.3
