@@ -22,6 +22,6 @@ wheel      0.45.0
 
 
 Activate with:
-source venv6/bin/activate
+source venv/bin/activate
 
 Run with python3 main.py
